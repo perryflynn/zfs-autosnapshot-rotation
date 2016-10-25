@@ -2,20 +2,9 @@
 
 Create and rotate zfs snapshots automatically.
 
-```
-root@eisenbart# ./zfsautosnap.sh myraidz/files autosnap 3
-[1/6] Delete myraidz/files@autosnap-20161024-164226
-[2/6] Delete myraidz/files@autosnap-20161024-172345
-[3/6] Delete myraidz/files@autosnap-20161024-191540
-[4/6] Delete myraidz/files@autosnap-20161024-192536
-[5/6] Delete myraidz/files@autosnap-20161024-192538
-[6/6] Delete myraidz/files@autosnap-20161024-192637
-Create new snapshot myraidz/files@autosnap-20161024-222403
-Done
-```
-
 - Create snapshots via cron job
 - Delete automatically old snapshots
+- Snapshot creation only when filesystem changed since last snapshot
 
 ## Parameters
 
@@ -23,3 +12,29 @@ Done
 - Snapshot prefix
 - Number of concurrent snapshots
 
+## Example output
+
+```
+root@eisenbart:/media/files/admin/zfstools# ./zfsautosnap.sh myraidz/files asnapdaily 3
+
+ZFS-Auto-Snapshot-Rotation
+
+[20161025 12:53:33] Begin on "myraidz/files" for "asnapdaily"
+[20161025 12:53:33] 2 snapshots found
+[20161025 12:53:33] 0 old snapshots detected
+[20161025 12:53:33] The newest "asnapdaily" snapshot in "myraidz/files" is "asnapdaily-20161025-125144"
+[20161025 12:53:34] Changes since last snapshot detected
+Create new snapshot "myraidz/files@asnapdaily-20161025-125333"
+[20161025 12:53:34] Done
+
+root@eisenbart:/media/files/admin/zfstools# ./zfsautosnap.sh myraidz/files asnapdaily 3
+
+ZFS-Auto-Snapshot-Rotation
+
+[20161025 12:53:41] Begin on "myraidz/files" for "asnapdaily"
+[20161025 12:53:41] 3 snapshots found
+[20161025 12:53:41] 1 old snapshots detected
+[20161025 12:53:41] The newest "asnapdaily" snapshot in "myraidz/files" is "asnapdaily-20161025-125333"
+[20161025 12:53:42] No changes since last snapshot. Abort.
+[20161025 12:53:42] Done
+```
