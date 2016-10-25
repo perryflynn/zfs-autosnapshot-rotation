@@ -41,7 +41,7 @@ usage() {
 
 # Log line with timestamp
 line() {
-    echo "[$(date "+%Y%m%d %H:%M:%S")] $1"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] $1"
 }
 
 # Must run as root
@@ -121,10 +121,10 @@ NEWESTSNAPNAME=$(eval "$CMDALLSNAPS | tail -n 1 | cut -d '@' -f 2")
 line "The newest \"$SNAP\" snapshot in \"$TARGET\" is \"$NEWESTSNAPNAME\""
 
 # Calculate changes
-CHANGESCOUNT=$($ZFS list -H -t snapshot -o name,used | grep -P "^${TARGET}(/[^\s@]+)?@${NEWESTSNAPNAME}\s" | awk '{print $2}' | sed "s#[^0-9]##g" | sed ':a;N;$!ba;s/\n/+/g' | bc)
+CHANGESCOUNT=$($ZFS list -H -p -t filesystem,volume -o name,written@$NEWESTSNAPNAME | grep -P "^${TARGET}(/[^\s@]+)?\s" | awk '{print $2}' | grep -v "-" | sed ':a;N;$!ba;s/\n/+/g' | sed 's/^/0+/g' | bc)
 
 # Start snapshot process only, when changes available
-if [ $CHANGESCOUNT -gt 0 ]; then
+if [ -z "$CHANGESCOUNT" ] || [ $CHANGESCOUNT -gt 0 ]; then
 
     line "Changes since last snapshot detected"
 
