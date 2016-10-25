@@ -5,7 +5,7 @@
 # http://andyleonard.com/2010/04/07/automatic-zfs-snapshot-rotation-on-freebsd/
 #
 # 07/17/2011 - ertug: made it compatible with zfs-fuse which doesn't have .zfs directories
-# 10/24/2016 - cblechert: more checks, timestamps in snapshotname, snapshot only when filsystem has changes
+# 10/24/2016 - cblechert: better checks, timestamps in snapshotname, snapshot only when filsystem has changes
 ##
 
 echo
@@ -120,11 +120,8 @@ OLDSNAPS=$(eval "$CMDOLDSNAPS")
 NEWESTSNAPNAME=$(eval "$CMDALLSNAPS | tail -n 1 | cut -d '@' -f 2")
 line "The newest \"$SNAP\" snapshot in \"$TARGET\" is \"$NEWESTSNAPNAME\""
 
-# Generate zfs diff commands
-CHANGESCMD=$($ZFS list -H -t snapshot | grep -P "^${TARGET}(/[^\s@]+)?@${NEWESTSNAPNAME}\s" | awk '{print $1}' | sed "s#^\([^@]*\)\(.*\)#$ZFS diff \"\1\2\" \"\1\"#" | sed ':a;N;$!ba;s/\n/; /g')
-
-# Count changes since last snapshot
-CHANGESCOUNT=$(eval "$CHANGESCMD" | wc -l)
+# Calculate changes
+CHANGESCOUNT=$($ZFS list -H -t snapshot -o name,used | grep -P "^${TARGET}(/[^\s@]+)?@${NEWESTSNAPNAME}\s" | awk '{print $2}' | sed "s#[^0-9]##g" | sed ':a;N;$!ba;s/\n/+/g' | bc)
 
 # Start snapshot process only, when changes available
 if [ $CHANGESCOUNT -gt 0 ]; then
