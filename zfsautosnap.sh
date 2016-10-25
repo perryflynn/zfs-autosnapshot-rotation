@@ -5,9 +5,12 @@
 # http://andyleonard.com/2010/04/07/automatic-zfs-snapshot-rotation-on-freebsd/
 #
 # 07/17/2011 - ertug: made it compatible with zfs-fuse which doesn't have .zfs directories
-# 10/24/2016 - cblechert: more checks, timestamps in snapshotname, many small changes
+# 10/24/2016 - cblechert: more checks, timestamps in snapshotname, snapshot only when filsystem has changes
 ##
 
+echo
+echo "ZFS-Auto-Snapshot-Rotation"
+echo
 
 # Parse arguments
 DIR=$(dirname "$0")
@@ -36,6 +39,11 @@ usage() {
     exit 1
 }
 
+# Log line with timestamp
+line() {
+    echo "[$(date "+%Y%m%d %H:%M:%S")] $1"
+}
+
 # Must run as root
 if [ ! "$(id -u)" == "0" ]; then
     echo "Must run as root!"
@@ -56,10 +64,21 @@ if [ ! "$(zfs list -H -t filesystem,volume | grep -P "^$TARGET\t" | wc -l)" -eq 
     usage
 fi
 
-# Basic argument checks:
+# Count must be numeric
 if ! [[ $COUNT =~ ^[0-9]+$ ]]; then
     echo "count must be a integer!"
     usage
+fi
+
+# Count must be greater than or equals to zero
+if [ ! "$COUNT" -ge 0 ]; then
+    echo "count must be greater than or equal to 0"
+    exit 1
+fi
+
+# Delete one more than specified -> space for the new snapshot
+if [ $COUNT -gt 0 ]; then
+    COUNT=$(($COUNT-1))
 fi
 
 # Snapshotname
@@ -74,44 +93,64 @@ if [ ! -z $4 ] ; then
     usage
 fi
 
-# Securiy check for snap counter
-if [ ! "$COUNT" -ge 0 ]; then
-    echo "count must be greater than or equal to 0"
-    exit 1
+#
+# Processing
+#
+
+line "Begin on \"$TARGET\" for \"$SNAP\""
+
+# Base command to get all snapshots
+CMDALLSNAPS="$ZFS list -H -t snapshot -d 1 \"$TARGET\" | awk '{print \$1}' | grep -P \"@$SNAP-[0-9]{8}-[0-9]{6}$\" | sort"
+
+# Base command to get all "old" snapshots
+CMDOLDSNAPS="$CMDALLSNAPS | head -n -$COUNT"
+
+# Number of all snapshots
+NUMSNAPS=$(eval "$CMDALLSNAPS | wc -l")
+line "$NUMSNAPS snapshots found"
+
+# Number of "old" snapshots
+NUMOLD=$(eval "$CMDOLDSNAPS | wc -l")
+line "$NUMOLD old snapshots detected"
+
+# List of "old" snapshots
+OLDSNAPS=$(eval "$CMDOLDSNAPS")
+
+# Name of the newest snapshot
+NEWESTSNAPNAME=$(eval "$CMDALLSNAPS | tail -n 1 | cut -d '@' -f 2")
+line "The newest \"$SNAP\" snapshot in \"$TARGET\" is \"$NEWESTSNAPNAME\""
+
+# Generate zfs diff commands
+CHANGESCMD=$($ZFS list -H -t snapshot | grep -P "^${TARGET}(/[^\s@]+)?@${NEWESTSNAPNAME}\s" | awk '{print $1}' | sed "s#^\([^@]*\)\(.*\)#$ZFS diff \"\1\2\" \"\1\"#" | sed ':a;N;$!ba;s/\n/; /g')
+
+# Count changes since last snapshot
+CHANGESCOUNT=$(eval "$CHANGESCMD" | wc -l)
+
+# Start snapshot process only, when changes available
+if [ $CHANGESCOUNT -gt 0 ]; then
+
+    line "Changes since last snapshot detected"
+
+    # Clean up "old" snapshot:
+    if [ $NUMOLD -gt 0 ]; then
+        for (( I=1; I<=$NUMOLD; I++ )); do
+
+            OLDSNAP=$(echo -e "$OLDSNAPS" | tail -n +$I | head -n 1)
+            line "[$I/$NUMOLD] Delete old snapshot \"$OLDSNAP\""
+            $ZFS destroy -r "$OLDSNAP"
+
+        done
+    fi
+
+    # Create new snapshot:
+    NEWSNAP="${TARGET}@${SNAP}-${TSTAMP}"
+    echo "Create new snapshot \"$NEWSNAP\""
+    $ZFS snapshot -r "$NEWSNAP"
+
+else
+
+    line "No changes since last snapshot. Abort."
+
 fi
 
-# List all snapshots
-ALLSNAPS=$($ZFS list -H -t snapshot -d 1 "$TARGET" | awk '{print $1}'| grep -P "@$SNAP-[0-9]{8}-[0-9]{6}$" | sort)
-
-# Calculate number of "old" snapshots
-if [ $COUNT -gt 0 ]; then
-    COUNT=$(($COUNT-1))
-fi
-
-OLDSNAPS=$(echo -e "$ALLSNAPS" | head -n -$COUNT)
-NUMOLD=$(echo -e "$OLDSNAPS" | wc -l)
-
-# Clean up oldest snapshot:
-if [ $NUMOLD -gt 0 ]; then
-    echo "Delete old snapshots"
-    for (( I=1; I<=$NUMOLD; I++ )); do
-        OLDSNAP=$(echo -e "$OLDSNAPS" | tail -n +$I | head -n 1)
-        echo "[$I/$NUMOLD] Delete $OLDSNAP"
-        $ZFS destroy -r "$OLDSNAP"
-    done
-    echo
-fi
-
-# Create new snapshot:
-NEWSNAP="${TARGET}@${SNAP}-${TSTAMP}"
-echo "Create new snapshot $NEWSNAP"
-$ZFS snapshot -r "$NEWSNAP"
-
-echo "Done"
-
-echo
-zfs list -t all -r -o name,creation,used,avail,usedsnap "$TARGET"
-echo
-
-exit 0
-
+line "Done"
