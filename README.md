@@ -1,4 +1,4 @@
-# zfs-autosnapshot-rotation
+# [EXPERIMENTAL] zfs-autosnapshot-rotation
 
 Create and rotate zfs snapshots automatically.
 
