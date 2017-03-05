@@ -8,9 +8,31 @@ Create and rotate zfs snapshots automatically.
 
 ## Parameters
 
-- ZFS volume name
-- Snapshot prefix
-- Number of concurrent snapshots
+```
+ZFS-Auto-Snapshot-Rotation
+
+Target tank does not exist!
+
+zfsautosnap.sh: Take and rotate snapshots on a ZFS file system
+
+  Usage:
+  zfsautosnap.sh [options]
+
+  -t, --target   Required, name of ZFS file system to act on
+  -n, --name     Required, base name for snapshots,
+                 followed by the current timestamp
+  -c, --count    Required, number of snapshots in snap_name.timestamp
+                 format to keep at one time.
+  --clearall     Delete all snapshots created by zfsautosnap.sh for given target
+  -h, --help     Print this help
+```
+
+## FAQ
+
+- **New snapshot was created but i haven't changed anything!**
+  
+  In most cases this is the access time (atime) of ZFS. See the property `atime` and disable it.
+  `zfs set atime=off myraifz/files` and `zfs inherit myraidz/files/foo; zfs inherit myraidz/files/bar`
 
 ## Example output
 
