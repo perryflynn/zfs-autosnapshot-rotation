@@ -37,7 +37,7 @@ zfsautosnap.sh: Take and rotate snapshots on a ZFS file system
 ## Example output
 
 ```
-root@eisenbart:/media/files/admin/zfstools# ./zfsautosnap.sh myraidz/files asnapdaily 3
+root@eisenbart:/media/files/admin/zfstools# ./zfsautosnap.sh -t myraidz/files -m asnapdaily -c 3
 
 ZFS-Auto-Snapshot-Rotation
 
@@ -49,7 +49,7 @@ ZFS-Auto-Snapshot-Rotation
 Create new snapshot "myraidz/files@asnapdaily-20161025-125333"
 [20161025 12:53:34] Done
 
-root@eisenbart:/media/files/admin/zfstools# ./zfsautosnap.sh myraidz/files asnapdaily 3
+root@eisenbart:/media/files/admin/zfstools# ./zfsautosnap.sh -t myraidz/files -m asnapdaily -c 3
 
 ZFS-Auto-Snapshot-Rotation
 
